@@ -34,4 +34,7 @@ urlpatterns = [
     # Vital signs visualization
     path('vital-signs/', views.vital_signs_dashboard, name='vital_signs_dashboard'),
     path('vital-signs/<int:issue_id>/', views.vital_signs_dashboard, name='vital_signs_dashboard_for_issue'),
+    
+    # Add this new URL pattern for doctor alerts
+    path('alerts/', views.doctor_alerts, name='doctor_alerts'),
 ] 

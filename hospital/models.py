@@ -122,6 +122,48 @@ class Appointment(models.Model):
     class Meta:
         ordering = ['appointment_date', 'appointment_time']
 
+class Alert(models.Model):
+    URGENCY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical')
+    ]
+
+    STATUS_CHOICES = [
+        ('new', 'New'),
+        ('viewed', 'Viewed'),
+        ('acknowledged', 'Acknowledged'),
+        ('resolved', 'Resolved')
+    ]
+
+    patient = models.ForeignKey('Patient', on_delete=models.CASCADE, related_name='alerts')
+    doctor = models.ForeignKey('Doctor', on_delete=models.CASCADE, related_name='alerts')
+    issue = models.ForeignKey('Issue', on_delete=models.CASCADE, related_name='alerts')
+    
+    timestamp = models.DateTimeField(default=timezone.now)
+    alert_time = models.DateTimeField()  # The time of the anomaly in the data
+    urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='new')
+    
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    vital_signs_data = models.JSONField()  # Store the relevant vital signs that triggered the alert
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-alert_time', '-urgency']
+        indexes = [
+            models.Index(fields=['-alert_time']),
+            models.Index(fields=['status']),
+            models.Index(fields=['doctor', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Alert for {self.patient} - {self.title} ({self.get_urgency_display()})"
+
 # Signal handlers to ensure Doctor and Patient records exist for respective users
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
