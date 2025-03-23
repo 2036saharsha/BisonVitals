@@ -1,0 +1,5 @@
+fastrtc
+python-dotenv
+google-genai
+twilio
+pydantic==2.10.0
