@@ -20,8 +20,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+3. Migrate
+```bash
+python manage.py migrate
+```
 
-3. Start the server:
+4. Start the server:
 ```bash
 python manage.py runserver
 ```
