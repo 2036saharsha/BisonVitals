@@ -1,0 +1,102 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Patient Profile - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Patient Profile</h4>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <span class="display-1">
+                        <i class="bi bi-person-circle"></i>
+                    </span>
+                </div>
+                <h3 class="card-title">{{ profile.user.get_full_name }}</h3>
+                <p class="card-text text-muted">@{{ profile.user.username }}</p>
+                <p class="card-text">
+                    <span class="badge bg-info">Patient</span>
+                </p>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                    <strong>Email:</strong> {{ profile.user.email }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Phone:</strong> {{ profile.user.phone_number|default:"Not provided" }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Date of Birth:</strong> {{ profile.user.date_of_birth|date:"F d, Y"|default:"Not provided" }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Address:</strong> {{ profile.user.address|default:"Not provided" }}
+                </li>
+            </ul>
+            <div class="card-footer">
+                <a href="#" class="btn btn-primary btn-sm">Edit Profile</a>
+                <a href="#" class="btn btn-outline-primary btn-sm">Change Password</a>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Emergency Contact</h4>
+            </div>
+            <div class="card-body">
+                <p><strong>Name:</strong> {{ profile.emergency_contact_name|default:"Not provided" }}</p>
+                <p><strong>Number:</strong> {{ profile.emergency_contact_number|default:"Not provided" }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Medical Information</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <h5>Blood Group</h5>
+                        <p>{{ profile.blood_group|default:"Not specified" }}</p>
+                    </div>
+                </div>
+                
+                <h5>Allergies</h5>
+                <p>{{ profile.allergies|default:"No allergies recorded." }}</p>
+                
+                <h5>Medical History</h5>
+                <p>{{ profile.medical_history|default:"No medical history recorded." }}</p>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Appointments</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No appointments found.</p>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <a href="#" class="btn btn-primary">Book Appointment</a>
+                    <a href="#" class="btn btn-outline-primary">View Past Appointments</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">My Doctors</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No doctors assigned yet.</p>
+                
+                <a href="#" class="btn btn-primary">Find Doctors</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

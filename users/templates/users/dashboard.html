@@ -1,0 +1,137 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Dashboard - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Profile</h4>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <span class="display-4">
+                        <i class="bi bi-person-circle"></i>
+                    </span>
+                </div>
+                <h5 class="card-title">{{ user.get_full_name }}</h5>
+                <p class="card-text text-muted">@{{ user.username }}</p>
+                <p class="card-text">
+                    {% if is_doctor %}
+                        <span class="badge bg-success">Doctor</span>
+                    {% elif is_patient %}
+                        <span class="badge bg-info">Patient</span>
+                    {% endif %}
+                </p>
+                <a href="{% url 'profile' %}" class="btn btn-outline-primary">View Profile</a>
+            </div>
+        </div>
+        
+        <div class="list-group mb-4">
+            <a href="#" class="list-group-item list-group-item-action active">Dashboard</a>
+            {% if is_doctor %}
+                <a href="#" class="list-group-item list-group-item-action">My Patients</a>
+                <a href="#" class="list-group-item list-group-item-action">Appointments</a>
+                <a href="#" class="list-group-item list-group-item-action">Schedule</a>
+            {% elif is_patient %}
+                <a href="#" class="list-group-item list-group-item-action">My Doctors</a>
+                <a href="#" class="list-group-item list-group-item-action">Appointments</a>
+                <a href="#" class="list-group-item list-group-item-action">Medical Records</a>
+            {% endif %}
+            <a href="#" class="list-group-item list-group-item-action">Messages</a>
+            <a href="#" class="list-group-item list-group-item-action">Settings</a>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Welcome, {{ user.get_full_name }}!</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">
+                    Welcome to your hospital CRM dashboard. Here you can manage your account and access various features.
+                </p>
+                
+                {% if is_doctor %}
+                    <h5>Doctor Information</h5>
+                    <p>
+                        <strong>Specialization:</strong> {{ doctor_profile.specialization }}<br>
+                        <strong>License Number:</strong> {{ doctor_profile.license_number }}<br>
+                        <strong>Years of Experience:</strong> {{ doctor_profile.years_of_experience }}
+                    </p>
+                    
+                    <div class="alert alert-success">
+                        <h5>Quick Actions</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="#" class="btn btn-success btn-sm w-100 mb-2">View Appointments</a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="#" class="btn btn-success btn-sm w-100 mb-2">Manage Patient Records</a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="#" class="btn btn-success btn-sm w-100 mb-2">Set Schedule</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                {% elif is_patient %}
+                    <h5>Patient Information</h5>
+                    <p>
+                        <strong>Blood Group:</strong> {{ patient_profile.blood_group|default:"Not specified" }}<br>
+                        <strong>Emergency Contact:</strong> {{ patient_profile.emergency_contact_name|default:"Not specified" }}
+                        ({{ patient_profile.emergency_contact_number|default:"No number" }})
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <h5>Quick Actions</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="#" class="btn btn-info btn-sm w-100 mb-2">Book Appointment</a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="#" class="btn btn-info btn-sm w-100 mb-2">View Medical History</a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="#" class="btn btn-info btn-sm w-100 mb-2">Find Doctors</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Upcoming Appointments</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">No upcoming appointments found.</p>
+                        
+                        {% if is_doctor %}
+                            <a href="#" class="btn btn-outline-primary btn-sm">View All Appointments</a>
+                        {% elif is_patient %}
+                            <a href="#" class="btn btn-outline-primary btn-sm">Book an Appointment</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">No recent activity found.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,48 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Sign Up - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <h1 class="mb-4">Choose Registration Type</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="mb-0">For Doctors</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Are you a healthcare provider?</p>
+                        <ul class="list-group list-group-flush mb-3 text-start">
+                            <li class="list-group-item">Create your professional profile</li>
+                            <li class="list-group-item">Manage patient appointments</li>
+                            <li class="list-group-item">Access medical records securely</li>
+                        </ul>
+                        <a href="{% url 'doctor_signup' %}" class="btn btn-success btn-lg">Register as Doctor</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h3 class="mb-0">For Patients</h3>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Looking for healthcare services?</p>
+                        <ul class="list-group list-group-flush mb-3 text-start">
+                            <li class="list-group-item">Easily book appointments</li>
+                            <li class="list-group-item">Access your medical records</li>
+                            <li class="list-group-item">Communication with your doctors</li>
+                        </ul>
+                        <a href="{% url 'patient_signup' %}" class="btn btn-info btn-lg">Register as Patient</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,97 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Doctor Profile - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Doctor Profile</h4>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <span class="display-1">
+                        <i class="bi bi-person-square"></i>
+                    </span>
+                </div>
+                <h3 class="card-title">Dr. {{ profile.user.get_full_name }}</h3>
+                <p class="card-text text-muted">@{{ profile.user.username }}</p>
+                <p class="card-text">
+                    <span class="badge bg-success">Doctor</span>
+                </p>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                    <strong>Email:</strong> {{ profile.user.email }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Phone:</strong> {{ profile.user.phone_number|default:"Not provided" }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Date of Birth:</strong> {{ profile.user.date_of_birth|date:"F d, Y"|default:"Not provided" }}
+                </li>
+                <li class="list-group-item">
+                    <strong>Address:</strong> {{ profile.user.address|default:"Not provided" }}
+                </li>
+            </ul>
+            <div class="card-footer">
+                <a href="#" class="btn btn-primary btn-sm">Edit Profile</a>
+                <a href="#" class="btn btn-outline-primary btn-sm">Change Password</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Professional Information</h4>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <h5>Specialization</h5>
+                        <p>{{ profile.specialization }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>License Number</h5>
+                        <p>{{ profile.license_number }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>Experience</h5>
+                        <p>{{ profile.years_of_experience }} years</p>
+                    </div>
+                </div>
+                
+                <h5>Professional Bio</h5>
+                <p>{{ profile.bio|default:"No bio provided." }}</p>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Schedule & Appointments</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No scheduled appointments found.</p>
+                
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <a href="#" class="btn btn-primary">View Appointments</a>
+                    <a href="#" class="btn btn-outline-primary">Set Schedule</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">My Patients</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">No patients assigned yet.</p>
+                
+                <a href="#" class="btn btn-primary">View All Patients</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
