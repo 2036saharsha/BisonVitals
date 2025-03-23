@@ -8,8 +8,9 @@ from django.utils.decorators import method_decorator
 from django.contrib.auth.views import LoginView
 from django.utils import timezone
 from django.db.models import Q
+from django.contrib import messages
 
-from .forms import DoctorSignUpForm, PatientSignUpForm, UserLoginForm
+from .forms import DoctorSignUpForm, PatientSignUpForm, UserLoginForm, DoctorProfileEditForm
 from .models import User, DoctorProfile, PatientProfile
 
 # Import these at the module level
@@ -205,3 +206,29 @@ def profile_view(request):
             'profile': patient_profile,
             'upcoming_appointments': upcoming_appointments
         })
+
+
+@login_required
+def edit_doctor_profile(request):
+    if not request.user.is_doctor():
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('dashboard')
+    
+    try:
+        profile = DoctorProfile.objects.get(user=request.user)
+    except DoctorProfile.DoesNotExist:
+        messages.error(request, "Doctor profile not found.")
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        form = DoctorProfileEditForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect('profile')
+    else:
+        form = DoctorProfileEditForm(instance=profile)
+    
+    return render(request, 'users/edit_doctor_profile.html', {
+        'form': form
+    })
