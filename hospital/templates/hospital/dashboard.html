@@ -1,0 +1,573 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Dashboard - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Welcome, {{ user.get_full_name }}</h3>
+            </div>
+            <div class="card-body">
+                <p class="lead">
+                    {% if user.is_doctor %}
+                    You have {{ upcoming_appointments_count }} upcoming appointments and {{ today_appointments_count }} appointments today.
+                    {% elif user.is_patient %}
+                    You have {{ upcoming_appointments_count }} upcoming appointments.
+                    {% else %}
+                    Welcome to the Hospital CRM system.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_patient %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Quick Actions</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'hospital:create_issue' %}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus-circle mb-2"></i><br>
+                                Report Health Issue
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-info btn-lg">
+                                <i class="fas fa-calendar-alt mb-2"></i><br>
+                                My Appointments
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'hospital:patient_medical_history' %}" class="btn btn-success btn-lg">
+                                <i class="fas fa-history mb-2"></i><br>
+                                Medical History
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            {% if recent_issues and recent_issues.0 %}
+                            <a href="{% url 'hospital:browse_doctors' %}{% if recent_issues.0.status == 'open' %}?issue_id={{ recent_issues.0.id }}{% endif %}" class="btn btn-warning btn-lg">
+                                <i class="fas fa-user-md mb-2"></i><br>
+                                Find Doctors
+                            </a>
+                            {% else %}
+                            <a href="{% url 'hospital:browse_doctors' %}" class="btn btn-warning btn-lg">
+                                <i class="fas fa-user-md mb-2"></i><br>
+                                Find Doctors
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Debug info -->
+        <div class="alert alert-info small">
+            {% if upcoming_appointments and upcoming_appointments.0 %}
+            <p>First appointment: ID #{{ upcoming_appointments.0.id }}, Date: {{ upcoming_appointments.0.appointment_date }}</p>
+            {% endif %}
+        </div>
+        
+        {% if upcoming_appointments and upcoming_appointments|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Upcoming Appointments</h4>
+                <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-sm btn-light">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Doctor</th>
+                                <th>Date & Time</th>
+                                <th>Issue</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in upcoming_appointments %}
+                            <tr>
+                                <td>Dr. {{ appointment.doctor.user.get_full_name }}</td>
+                                <td>{{ appointment.appointment_date|date:"M d, Y" }} at {{ appointment.appointment_time|time:"g:i A" }}</td>
+                                <td>{{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}</td>
+                                <td>
+                                    <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                        {{ appointment.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'hospital:appointment_detail' appointment.id %}" class="btn btn-sm btn-primary">Details</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if recent_issues %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Recent Health Issues</h4>
+                <a href="{% url 'hospital:patient_medical_history' %}" class="btn btn-sm btn-dark">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Issue</th>
+                                <th>Date Reported</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for issue in recent_issues %}
+                            <tr>
+                                <td>{{ issue.disease_type.name|default:issue.custom_disease_type }}</td>
+                                <td>{{ issue.created_at|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="badge bg-{% if issue.severity == 'low' %}success{% elif issue.severity == 'medium' %}warning{% elif issue.severity == 'high' %}danger{% else %}dark{% endif %}">
+                                        {{ issue.get_severity_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if issue.status == 'open' %}primary{% elif issue.status == 'in_progress' %}info{% elif issue.status == 'resolved' %}success{% else %}secondary{% endif %}">
+                                        {{ issue.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'hospital:patient_medical_history' %}#collapse{{ issue.id }}" class="btn btn-sm btn-primary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Health Tips</h4>
+            </div>
+            <div class="card-body">
+                <div id="healthTipsCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        <div class="carousel-item active">
+                            <h5>Stay Hydrated</h5>
+                            <p>Drink at least 8 glasses of water daily to maintain optimal health.</p>
+                        </div>
+                        <div class="carousel-item">
+                            <h5>Regular Exercise</h5>
+                            <p>Aim for at least 30 minutes of moderate exercise 5 days a week.</p>
+                        </div>
+                        <div class="carousel-item">
+                            <h5>Balanced Diet</h5>
+                            <p>Include fruits, vegetables, whole grains, lean proteins, and healthy fats in your meals.</p>
+                        </div>
+                        <div class="carousel-item">
+                            <h5>Adequate Sleep</h5>
+                            <p>Get 7-9 hours of quality sleep per night for overall well-being.</p>
+                        </div>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#healthTipsCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#healthTipsCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        {% if doctor_specializations %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Find Specialists</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for specialization in doctor_specializations %}
+                    <a href="{% url 'hospital:create_issue' %}?specialization={{ specialization }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        {{ specialization }}
+                        <span class="badge bg-primary rounded-pill">{{ specialization.doctor_count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">Emergency Contact</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead mb-2">For medical emergencies, please call:</p>
+                <h3 class="text-danger"><i class="fas fa-phone-alt me-2"></i>911</h3>
+                <hr>
+                <h5>Hospital Helpline</h5>
+                <p class="mb-0"><i class="fas fa-phone-alt me-2"></i>(555) 123-4567</p>
+                <p><i class="fas fa-envelope me-2"></i>help@hospitalcrm.com</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if user.is_doctor %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Quick Actions</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-calendar-alt mb-2"></i><br>
+                                My Appointments
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="#" class="btn btn-info btn-lg">
+                                <i class="fas fa-user-injured mb-2"></i><br>
+                                My Patients
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="d-grid">
+                            <a href="#" class="btn btn-success btn-lg">
+                                <i class="fas fa-cog mb-2"></i><br>
+                                Manage Schedule
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if today_appointments %}
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Today's Appointments</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Patient</th>
+                                <th>Issue</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in today_appointments %}
+                            <tr>
+                                <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                                <td>{{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}</td>
+                                <td>
+                                    <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                        {{ appointment.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'hospital:appointment_detail' appointment.id %}" class="btn btn-sm btn-primary">Details</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if upcoming_appointments %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Upcoming Appointments</h4>
+                <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-sm btn-light">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Patient</th>
+                                <th>Issue</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in upcoming_appointments %}
+                            <tr>
+                                <td>{{ appointment.appointment_date|date:"M d, Y" }}</td>
+                                <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                                <td>{{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}</td>
+                                <td>
+                                    <a href="{% url 'hospital:appointment_detail' appointment.id %}" class="btn btn-sm btn-primary">Details</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">Statistics</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Total Patients
+                        <span class="badge bg-primary rounded-pill">{{ total_patients }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Appointments This Week
+                        <span class="badge bg-info rounded-pill">{{ weekly_appointments_count }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Appointments This Month
+                        <span class="badge bg-success rounded-pill">{{ monthly_appointments_count }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Completed Appointments
+                        <span class="badge bg-secondary rounded-pill">{{ completed_appointments_count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if recent_patients %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Recent Patients</h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for patient in recent_patients %}
+                    <a href="{% url 'hospital:patient_medical_history' patient.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ patient.user.get_full_name }}</h5>
+                            <small class="text-muted">{{ patient.last_appointment_date|date:"M d, Y"|default:"No appointments" }}</small>
+                        </div>
+                        <p class="mb-1">{{ patient.recent_issue|default:"No recent issues" }}</p>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">Emergency Protocol</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead mb-2">For medical emergencies, please call:</p>
+                <h3 class="text-danger"><i class="fas fa-phone-alt me-2"></i>911</h3>
+                <hr>
+                <h5>Hospital Contacts</h5>
+                <p class="mb-0"><i class="fas fa-phone-alt me-2"></i>ER: (555) 123-4567</p>
+                <p class="mb-0"><i class="fas fa-phone-alt me-2"></i>Administrator: (555) 987-6543</p>
+                <p><i class="fas fa-envelope me-2"></i>emergency@hospitalcrm.com</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if user.is_staff and not user.is_doctor %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Admin Quick Links</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'admin:index' %}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-tachometer-alt mb-2"></i><br>
+                                Admin Dashboard
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-info btn-lg">
+                                <i class="fas fa-calendar-alt mb-2"></i><br>
+                                Manage Appointments
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'admin:hospital_diseasetype_changelist' %}" class="btn btn-success btn-lg">
+                                <i class="fas fa-disease mb-2"></i><br>
+                                Manage Disease Types
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="d-grid">
+                            <a href="{% url 'admin:users_user_changelist' %}" class="btn btn-warning btn-lg">
+                                <i class="fas fa-users mb-2"></i><br>
+                                Manage Users
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Hospital Statistics</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h3 class="text-primary">{{ total_doctors }}</h3>
+                                <p class="mb-0">Total Doctors</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h3 class="text-info">{{ total_patients }}</h3>
+                                <p class="mb-0">Total Patients</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h3 class="text-success">{{ total_appointments }}</h3>
+                                <p class="mb-0">Total Appointments</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h3 class="text-warning">{{ total_disease_types }}</h3>
+                                <p class="mb-0">Disease Types</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Recent Activity</h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for activity in recent_activity %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{ activity.title }}</h5>
+                            <small class="text-muted">{{ activity.timestamp|date:"M d, Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ activity.description }}</p>
+                        <small class="text-muted">{{ activity.user }}</small>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item">
+                        <p class="mb-0">No recent activity.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">System Status</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Database Status
+                        <span class="badge bg-success rounded-pill">Online</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Email System
+                        <span class="badge bg-success rounded-pill">Online</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        Backup Status
+                        <span class="badge bg-info rounded-pill">Last: {{ last_backup_date|date:"M d, Y H:i"|default:"Never" }}</span>
+                    </div>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        System Version
+                        <span class="badge bg-secondary rounded-pill">v1.0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 

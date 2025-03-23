@@ -1,0 +1,162 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Recommended Doctors - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h3 class="mb-0">Recommended Doctors for Your Issue</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5>Your Health Issue</h5>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">
+                                {{ issue.disease_type.name|default:issue.custom_disease_type }}
+                                <span class="badge bg-{% if issue.severity == 'low' %}success{% elif issue.severity == 'medium' %}warning{% elif issue.severity == 'high' %}danger{% else %}dark{% endif %}">
+                                    {{ issue.get_severity_display }}
+                                </span>
+                            </h6>
+                            <p class="card-text">{{ issue.description }}</p>
+                            {% if issue.symptoms %}
+                                <p class="card-text"><strong>Symptoms:</strong> {{ issue.symptoms }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5>Recommended Doctors</h5>
+                        <div>
+                            <a href="?ai_recommend=true" class="btn btn-warning btn-sm me-2">
+                                <i class="fas fa-robot me-1"></i> AI Recommendations
+                            </a>
+                            <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                                <i class="fas fa-filter me-1"></i> Filter Results
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="collapse mb-3" id="filterCollapse">
+                        <div class="card card-body">
+                            <form method="get" class="row g-3">
+                                {% if request.GET.ai_recommend %}
+                                <input type="hidden" name="ai_recommend" value="true">
+                                {% endif %}
+                                <div class="col-md-12 mb-2">
+                                    <label for="doctor_search" class="form-label">Search Doctor</label>
+                                    <div class="input-group">
+                                        <input type="text" name="q" id="doctor_search" class="form-control" placeholder="Search by doctor name" value="{{ request.GET.q|default:'' }}">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-search"></i> Search
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ filter_form.specialization.id_for_label }}" class="form-label">Specialization</label>
+                                    {{ filter_form.specialization }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ filter_form.years_of_experience.id_for_label }}" class="form-label">Experience</label>
+                                    {{ filter_form.years_of_experience }}
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                                    <a href="{% url 'hospital:doctor_recommendations' issue.id %}" class="btn btn-outline-secondary">Clear Filters</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    {% if ai_recommendations %}
+                    <div class="alert alert-warning mt-3">
+                        <h6 class="mb-2"><i class="fas fa-robot me-2"></i> AI-Powered Recommendations</h6>
+                        <p class="small mb-3">Our AI has analyzed your health issue and recommended the following doctors:</p>
+                        
+                        <div class="list-group mb-3">
+                            {% for recommendation in ai_recommendations.recommendations %}
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ recommendation.name }}</h6>
+                                    <a href="{% url 'hospital:book_appointment' recommendation.id issue.id %}" class="btn btn-success btn-sm">Book Appointment</a>
+                                </div>
+                                <p class="mb-1 small">{{ recommendation.explanation }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if doctors %}
+                        <div class="row">
+                            {% for doctor in doctors %}
+                                <div class="col-md-6 mb-4">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-light">
+                                            <h5 class="mb-0">Dr. {{ doctor.user.get_full_name }}</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <h6 class="card-subtitle mb-2 text-muted">{{ doctor.specialization }}</h6>
+                                            <p class="card-text">
+                                                <strong>Experience:</strong> {{ doctor.years_of_experience }} years<br>
+                                                <strong>License:</strong> {{ doctor.license_number }}
+                                            </p>
+                                            {% if doctor.bio %}
+                                                <p class="card-text">{{ doctor.bio|truncatewords:30 }}</p>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer">
+                                            <a href="{% url 'hospital:book_appointment' doctor.id issue.id %}" class="btn btn-success">Book Appointment</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <p class="mb-0">No doctors found matching your criteria. Please try different filters or <a href="{% url 'hospital:doctor_recommendations' issue.id %}">view all doctors</a>.</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="text-center mt-4">
+                    <p class="text-muted">Want to see all available doctors regardless of your health issue?</p>
+                    <a href="{% url 'hospital:browse_doctors' %}?issue_id={{ issue.id }}" class="btn btn-outline-primary">
+                        <i class="fas fa-user-md me-1"></i> Browse All Doctors
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'hospital:create_issue' %}" class="btn btn-outline-primary">Report Another Issue</a>
+                    <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-outline-primary">My Appointments</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Dashboard</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Need Help?</h5>
+            </div>
+            <div class="card-body">
+                <p>If you're looking for a specific doctor, use the search box in the filter panel above.</p>
+                <p>If you need immediate medical attention, please call emergency services or visit the nearest emergency room.</p>
+                <p class="mb-0"><strong>Emergency:</strong> 911</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

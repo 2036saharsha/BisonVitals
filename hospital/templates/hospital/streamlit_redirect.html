@@ -1,0 +1,30 @@
+{% extends 'hospital/base.html' %}
+{% load static %}
+
+{% block title %}Vital Signs Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-4">
+        <img src="{% static 'hospital/img/loading.gif' %}" alt="Loading" class="mb-3" style="width: 80px;">
+        <h2>Launching Vital Signs Dashboard</h2>
+        <p class="text-muted">Please wait while we prepare your interactive dashboard...</p>
+        <div class="progress mb-4" style="height: 10px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
+        </div>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            If the dashboard doesn't open automatically, please 
+            <a href="{{ streamlit_url }}" class="alert-link" target="_blank">click here</a> to open it manually.
+        </div>
+    </div>
+</div>
+
+<script>
+    // Redirect to Streamlit app after a short delay
+    setTimeout(function() {
+        window.location.href = "{{ streamlit_url }}";
+    }, 3000);
+</script>
+{% endblock %} 

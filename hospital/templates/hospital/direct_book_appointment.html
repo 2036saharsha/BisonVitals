@@ -1,0 +1,198 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Book Appointment with Dr. {{ doctor.user.get_full_name }} - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Book Appointment with Dr. {{ doctor.user.get_full_name }}</h3>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Doctor Information</h5>
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">Dr. {{ doctor.user.get_full_name }}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">{{ doctor.specialization }}</h6>
+                                <ul class="list-group list-group-flush mt-3">
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Experience:</span>
+                                        <span class="fw-bold">{{ doctor.years_of_experience }} years</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>License Number:</span>
+                                        <span class="fw-bold">{{ doctor.license_number }}</span>
+                                    </li>
+                                </ul>
+                                {% if doctor.bio %}
+                                <div class="mt-3">
+                                    <p class="card-text">{{ doctor.bio }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <h5 class="alert-heading">Booking Information</h5>
+                            <p>You are about to book an appointment with Dr. {{ doctor.user.get_full_name }}. Please provide details about your health issue and preferred appointment time.</p>
+                            <hr>
+                            <p class="mb-0">All fields marked with <span class="text-danger">*</span> are required.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if existing_issue %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Using Existing Health Issue</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">{{ existing_issue.disease_type.name|default:existing_issue.custom_disease_type }}
+                                    <span class="badge bg-{% if existing_issue.severity == 'low' %}success{% elif existing_issue.severity == 'medium' %}warning{% elif existing_issue.severity == 'high' %}danger{% else %}dark{% endif %}">
+                                        {{ existing_issue.get_severity_display }}
+                                    </span>
+                                </h6>
+                                <p>{{ existing_issue.description }}</p>
+                                
+                                {% if existing_issue.symptoms %}
+                                <p><strong>Symptoms:</strong> {{ existing_issue.symptoms }}</p>
+                                {% endif %}
+                                
+                                {% if existing_issue.device_data %}
+                                <p class="mb-0">
+                                    <i class="bi bi-activity"></i> This issue has linked vital signs data that will be shared with the doctor.
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Health Issue Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ issue_form.disease_type.id_for_label }}" class="form-label fw-bold">Issue Type <span class="text-danger">*</span></label>
+                                    {{ issue_form.disease_type }}
+                                    {% if issue_form.disease_type.errors %}
+                                    <div class="text-danger">
+                                        {% for error in issue_form.disease_type.errors %}
+                                        {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="{{ issue_form.custom_disease_type.id_for_label }}" class="form-label">Other Issue Type</label>
+                                    {{ issue_form.custom_disease_type }}
+                                    <div class="form-text">{{ issue_form.custom_disease_type.help_text }}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="{{ issue_form.description.id_for_label }}" class="form-label fw-bold">Description <span class="text-danger">*</span></label>
+                                    {{ issue_form.description }}
+                                    {% if issue_form.description.errors %}
+                                    <div class="text-danger">
+                                        {% for error in issue_form.description.errors %}
+                                        {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label for="{{ issue_form.symptoms.id_for_label }}" class="form-label">Symptoms</label>
+                                    {{ issue_form.symptoms }}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <label for="{{ issue_form.severity.id_for_label }}" class="form-label fw-bold">Severity <span class="text-danger">*</span></label>
+                                    {{ issue_form.severity }}
+                                    <div class="form-text">How severe is your issue?</div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-check">
+                                        {{ issue_form.device_data }}
+                                        <label class="form-check-label" for="{{ issue_form.device_data.id_for_label }}">
+                                            {{ issue_form.device_data.label }}
+                                        </label>
+                                        <div class="form-text">{{ issue_form.device_data.help_text }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Appointment Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="{{ appointment_form.appointment_date.id_for_label }}" class="form-label fw-bold">Date <span class="text-danger">*</span></label>
+                                    {{ appointment_form.appointment_date }}
+                                    {% if appointment_form.appointment_date.errors %}
+                                    <div class="text-danger">
+                                        {% for error in appointment_form.appointment_date.errors %}
+                                        {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="{{ appointment_form.appointment_time.id_for_label }}" class="form-label fw-bold">Time <span class="text-danger">*</span></label>
+                                    {{ appointment_form.appointment_time }}
+                                    {% if appointment_form.appointment_time.errors %}
+                                    <div class="text-danger">
+                                        {% for error in appointment_form.appointment_time.errors %}
+                                        {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <label for="{{ appointment_form.notes.id_for_label }}" class="form-label">Additional Notes</label>
+                                    {{ appointment_form.notes }}
+                                    <div class="form-text">Any additional information you'd like the doctor to know.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'hospital:browse_doctors' %}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Book Appointment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

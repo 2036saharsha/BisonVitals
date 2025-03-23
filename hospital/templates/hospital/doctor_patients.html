@@ -1,0 +1,73 @@
+{% extends 'users/base.html' %}
+
+{% block title %}My Patients - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0">My Patients</h3>
+            </div>
+            <div class="card-body">
+                {% if patients %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Patient Name</th>
+                                    <th>Date of Birth</th>
+                                    <th>Blood Group</th>
+                                    <th>Last Appointment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for patient in patients %}
+                                    <tr>
+                                        <td>{{ patient.user.get_full_name }}</td>
+                                        <td>{{ patient.date_of_birth|date:"M d, Y"|default:"Not available" }}</td>
+                                        <td>{{ patient.blood_group|default:"Not available" }}</td>
+                                        <td>
+                                            {% with last_appointment=patient.appointments.all|dictsortreversed:"appointment_date"|first %}
+                                                {% if last_appointment %}
+                                                    {{ last_appointment.appointment_date|date:"M d, Y" }}
+                                                {% else %}
+                                                    No appointments
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'hospital:patient_medical_history_by_doctor' patient.id %}" class="btn btn-outline-primary">View History</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <p class="mb-0">You don't have any patients yet. They will appear here once they book appointments with you.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Doctor Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-primary">My Appointments</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

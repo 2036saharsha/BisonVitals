@@ -1,0 +1,588 @@
+{% extends 'users/base.html' %}
+{% load static %}
+
+{% block title %}Vital Signs Visualization{% endblock %}
+
+{% block extra_head %}
+<!-- Load Plotly.js -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<!-- Add nouislider for range selection -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.7.0/nouislider.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.7.0/nouislider.min.js"></script>
+<style>
+    .plot-container {
+        margin-bottom: 30px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 400px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    .loading-spinner {
+        width: 3rem;
+        height: 3rem;
+    }
+    .nav-pills .nav-link.active {
+        background-color: #0d6efd;
+    }
+    .patient-details {
+        background-color: rgba(0, 123, 255, 0.05);
+        border-left: 4px solid #0d6efd;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 0 8px 8px 0;
+    }
+    .plot-title {
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .tab-info {
+        padding: 15px;
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #6c757d;
+    }
+    #timeRangeSlider {
+        margin: 10px 15px 30px 15px;
+    }
+    .time-range-container {
+        background-color: rgba(0, 123, 255, 0.05);
+        border-radius: 8px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+    }
+    .time-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    .btn-time-preset {
+        font-size: 0.85rem;
+        margin-right: 5px;
+    }
+    /* Custom slider styling */
+    .noUi-connect {
+        background: #0d6efd;
+    }
+    .noUi-handle {
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .noUi-handle:before, .noUi-handle:after {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">
+                        {% if issue %}
+                        Vital Signs for {{ issue.disease_type.name|default:issue.custom_disease_type }}
+                        {% else %}
+                        Vital Signs Visualization Dashboard
+                        {% endif %}
+                    </h3>
+                    <div>
+                        {% if issue %}
+                        <a href="{% url 'hospital:patient_medical_history' %}" class="btn btn-sm btn-light">
+                            <i class="fas fa-arrow-left"></i> Back to Medical History
+                        </a>
+                        {% else %}
+                        <a href="{% url 'dashboard' %}" class="btn btn-sm btn-light">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if patient %}
+                    <div class="patient-details">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Patient: {{ patient.user.get_full_name }}</h5>
+                                <p class="mb-0">
+                                    Age: {{ patient.user.age|default:'N/A' }} &nbsp;|&nbsp;
+                                    Gender: {{ patient.user.get_gender_display|default:'N/A' }}
+                                </p>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                {% if issue %}
+                                <span class="badge bg-{% if issue.severity == 'low' %}success{% elif issue.severity == 'medium' %}warning{% elif issue.severity == 'high' %}danger{% else %}info{% endif %} mb-2">
+                                    {{ issue.get_severity_display }} Severity
+                                </span>
+                                <p class="mb-0">Reported on: {{ issue.created_at|date:"F j, Y" }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <ul class="nav nav-pills mb-4" id="visualizationTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if active_tab == 'dashboard' %}active{% endif %}" id="dashboard-tab" data-bs-toggle="pill" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="true">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if active_tab == 'timeseries' %}active{% endif %}" id="timeseries-tab" data-bs-toggle="pill" data-bs-target="#timeseries" type="button" role="tab" aria-controls="timeseries" aria-selected="false">
+                                <i class="fas fa-chart-line"></i> Vital Signs Trends
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if active_tab == 'patterns' %}active{% endif %}" id="patterns-tab" data-bs-toggle="pill" data-bs-target="#patterns" type="button" role="tab" aria-controls="patterns" aria-selected="false">
+                                <i class="fas fa-chart-bar"></i> Population Patterns
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if active_tab == 'risk' %}active{% endif %}" id="risk-tab" data-bs-toggle="pill" data-bs-target="#risk" type="button" role="tab" aria-controls="risk" aria-selected="false">
+                                <i class="fas fa-exclamation-triangle"></i> Risk Analysis
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    {% if patient_id %}
+                    <div class="time-range-container">
+                        <h5><i class="fas fa-clock"></i> Time Range Selection</h5>
+                        <div class="row align-items-center mb-2">
+                            <div class="col">
+                                <div id="timeRangeSlider"></div>
+                                <div class="time-labels">
+                                    <span id="startTimeLabel"></span>
+                                    <span id="endTimeLabel"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-primary btn-time-preset" data-preset="last24h">Last 24 Hours</button>
+                                <button class="btn btn-sm btn-outline-primary btn-time-preset" data-preset="last7d">Last 7 Days</button>
+                                <button class="btn btn-sm btn-outline-primary btn-time-preset" data-preset="last30d">Last 30 Days</button>
+                                <button class="btn btn-sm btn-outline-primary btn-time-preset" data-preset="all">All Data</button>
+                            </div>
+                            <button class="btn btn-sm btn-primary ms-auto" id="applyTimeRange">
+                                <i class="fas fa-filter"></i> Apply Filter
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="tab-content" id="visualizationTabsContent">
+                        <!-- Dashboard Tab -->
+                        <div class="tab-pane fade {% if active_tab == 'dashboard' %}show active{% endif %}" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+                            <div class="tab-info">
+                                <h5><i class="fas fa-info-circle"></i> Vital Signs Dashboard</h5>
+                                <p class="mb-0">This dashboard presents a comprehensive view of the patient's vital signs with gauge charts and a radar profile to visualize how values compare to normal ranges.</p>
+                            </div>
+                            
+                            {% if patient_id %}
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div id="gauges_plot" class="plot-container">
+                                        <div class="loading">
+                                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div id="radar_plot" class="plot-container">
+                                        <div class="loading">
+                                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div id="risk_analysis_plot" class="plot-container">
+                                        <div class="loading">
+                                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Select a patient to view their vital signs dashboard.
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Time Series Tab -->
+                        <div class="tab-pane fade {% if active_tab == 'timeseries' %}show active{% endif %}" id="timeseries" role="tabpanel" aria-labelledby="timeseries-tab">
+                            <div class="tab-info">
+                                <h5><i class="fas fa-info-circle"></i> Vital Signs Time Series</h5>
+                                <p class="mb-0">This plot displays the patient's vital signs over time, allowing you to observe trends and identify potential patterns in the data.</p>
+                            </div>
+                            
+                            {% if patient_id %}
+                            <div id="timeseries_plot" class="plot-container">
+                                <div class="loading">
+                                    <div class="spinner-border loading-spinner text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Select a patient to view their vital signs time series.
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Population Patterns Tab -->
+                        <div class="tab-pane fade {% if active_tab == 'patterns' %}show active{% endif %}" id="patterns" role="tabpanel" aria-labelledby="patterns-tab">
+                            <div class="tab-info">
+                                <h5><i class="fas fa-info-circle"></i> Population Patterns</h5>
+                                <p class="mb-0">These plots provide insight into the distribution of vital signs across the entire population and correlations between different metrics.</p>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div id="distribution_plot" class="plot-container">
+                                        <div class="loading">
+                                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div id="correlation_plot" class="plot-container">
+                                        <div class="loading">
+                                            <div class="spinner-border loading-spinner text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get data from Django
+        const patientId = "{{ patient_id|default:'' }}";
+        const datasetPath = "{{ dataset_path }}";
+        
+        // Initialize time range slider if patient is selected
+        if (patientId) {
+            initTimeRangeSlider();
+        }
+        
+        // Fetch and render plots
+        fetchPlots(patientId, datasetPath);
+        
+        // Handle tab changes
+        const tabLinks = document.querySelectorAll('.nav-link');
+        tabLinks.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const activeTab = this.getAttribute('id').replace('-tab', '');
+                history.replaceState(null, '', `?tab=${activeTab}`);
+            });
+        });
+        
+        // Apply time range filter
+        document.getElementById('applyTimeRange').addEventListener('click', function() {
+            fetchFilteredPlots();
+        });
+        
+        // Time range presets
+        document.querySelectorAll('.btn-time-preset').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const preset = this.getAttribute('data-preset');
+                setTimeRangePreset(preset);
+            });
+        });
+    });
+    
+    // Global variables for time range
+    let timeRangeSlider;
+    let timeData = {
+        minDate: null,
+        maxDate: null,
+        selectedStart: null,
+        selectedEnd: null,
+        allTimestamps: []
+    };
+    
+    function initTimeRangeSlider() {
+        const sliderElem = document.getElementById('timeRangeSlider');
+        
+        // Create slider with placeholders (will be updated when data is fetched)
+        timeRangeSlider = noUiSlider.create(sliderElem, {
+            start: [0, 100],
+            connect: true,
+            range: {
+                'min': 0,
+                'max': 100
+            },
+            step: 1,
+            format: {
+                to: function(value) {
+                    return Math.round(value);
+                },
+                from: function(value) {
+                    return Math.round(value);
+                }
+            }
+        });
+        
+        // Update time labels when slider changes
+        timeRangeSlider.on('update', function(values, handle) {
+            updateTimeLabels(values[0], values[1]);
+        });
+    }
+    
+    function updateTimeRangeSlider(timestamps) {
+        if (!timeRangeSlider) return;
+        
+        // Save all timestamps for filtering
+        timeData.allTimestamps = timestamps;
+        
+        // Get min and max dates
+        timeData.minDate = new Date(Math.min(...timestamps));
+        timeData.maxDate = new Date(Math.max(...timestamps));
+        
+        // Default to full range
+        timeData.selectedStart = 0;
+        timeData.selectedEnd = timestamps.length - 1;
+        
+        // Update slider
+        timeRangeSlider.updateOptions({
+            range: {
+                'min': 0,
+                'max': timestamps.length - 1
+            },
+            start: [0, timestamps.length - 1]
+        }, true);
+        
+        // Update time labels
+        updateTimeLabels(0, timestamps.length - 1);
+    }
+    
+    function updateTimeLabels(startIdx, endIdx) {
+        if (!timeData.allTimestamps || timeData.allTimestamps.length === 0) return;
+        
+        timeData.selectedStart = startIdx;
+        timeData.selectedEnd = endIdx;
+        
+        const startTimestamp = timeData.allTimestamps[startIdx];
+        const endTimestamp = timeData.allTimestamps[endIdx];
+        
+        const startDate = new Date(startTimestamp);
+        const endDate = new Date(endTimestamp);
+        
+        const formatOptions = { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        };
+        
+        document.getElementById('startTimeLabel').textContent = startDate.toLocaleDateString(undefined, formatOptions);
+        document.getElementById('endTimeLabel').textContent = endDate.toLocaleDateString(undefined, formatOptions);
+    }
+    
+    function setTimeRangePreset(preset) {
+        if (!timeData.allTimestamps || timeData.allTimestamps.length === 0) return;
+        
+        const now = new Date(timeData.maxDate);
+        let startDate;
+        
+        switch(preset) {
+            case 'last24h':
+                startDate = new Date(now);
+                startDate.setHours(now.getHours() - 24);
+                break;
+            case 'last7d':
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case 'last30d':
+                startDate = new Date(now);
+                startDate.setDate(now.getDate() - 30);
+                break;
+            case 'all':
+            default:
+                startDate = new Date(timeData.minDate);
+                break;
+        }
+        
+        // Find indices closest to the selected dates
+        const startTimestamp = startDate.getTime();
+        let startIdx = 0;
+        let minDiff = Infinity;
+        
+        for (let i = 0; i < timeData.allTimestamps.length; i++) {
+            const diff = Math.abs(new Date(timeData.allTimestamps[i]).getTime() - startTimestamp);
+            if (diff < minDiff) {
+                minDiff = diff;
+                startIdx = i;
+            }
+        }
+        
+        // Update slider
+        timeRangeSlider.set([startIdx, timeData.allTimestamps.length - 1]);
+    }
+    
+    function fetchFilteredPlots() {
+        const patientId = "{{ patient_id|default:'' }}";
+        const datasetPath = "{{ dataset_path }}";
+        
+        // Show loading indicators
+        document.querySelectorAll('.loading').forEach(loader => {
+            loader.style.display = 'flex';
+        });
+        
+        // Build URL
+        let url = `{% url 'hospital:vital_signs_data' %}?dataset_path=${datasetPath}`;
+        if (patientId) {
+            url += `&patient_id=${patientId}`;
+            
+            // Add time range filter if set
+            if (timeData.selectedStart !== null && timeData.selectedEnd !== null) {
+                const startTime = new Date(timeData.allTimestamps[timeData.selectedStart]).toISOString();
+                const endTime = new Date(timeData.allTimestamps[timeData.selectedEnd]).toISOString();
+                url += `&start_time=${encodeURIComponent(startTime)}&end_time=${encodeURIComponent(endTime)}`;
+            }
+        }
+        
+        // Fetch plot data
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                renderPlots(data);
+            })
+            .catch(error => {
+                console.error('Error fetching plot data:', error);
+                document.querySelectorAll('.loading').forEach(loader => {
+                    loader.innerHTML = `
+                        <div class="alert alert-danger m-3">
+                            <i class="fas fa-exclamation-circle"></i> Error loading visualization data.
+                        </div>
+                    `;
+                });
+            });
+    }
+    
+    function fetchPlots(patientId, datasetPath) {
+        // Show loading indicators
+        document.querySelectorAll('.loading').forEach(loader => {
+            loader.style.display = 'flex';
+        });
+        
+        // Build URL
+        let url = `{% url 'hospital:vital_signs_data' %}?dataset_path=${datasetPath}`;
+        if (patientId) {
+            url += `&patient_id=${patientId}`;
+        }
+        
+        // Fetch plot data
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // If we have timestamps, initialize the time range slider
+                if (data.timestamps) {
+                    updateTimeRangeSlider(data.timestamps);
+                }
+                renderPlots(data);
+            })
+            .catch(error => {
+                console.error('Error fetching plot data:', error);
+                document.querySelectorAll('.loading').forEach(loader => {
+                    loader.innerHTML = `
+                        <div class="alert alert-danger m-3">
+                            <i class="fas fa-exclamation-circle"></i> Error loading visualization data.
+                        </div>
+                    `;
+                });
+            });
+    }
+    
+    function renderPlots(data) {
+        // Render each plot
+        if (data.gauges) {
+            renderPlot('gauges_plot', data.gauges);
+        }
+        
+        if (data.radar) {
+            renderPlot('radar_plot', data.radar);
+        }
+        
+        if (data.timeseries) {
+            renderPlot('timeseries_plot', data.timeseries);
+        }
+        
+        if (data.distribution) {
+            renderPlot('distribution_plot', data.distribution);
+        }
+        
+        if (data.correlation) {
+            renderPlot('correlation_plot', data.correlation);
+        }
+        
+        if (data.risk_analysis) {
+            renderPlot('risk_analysis_plot', data.risk_analysis);
+        }
+    }
+    
+    function renderPlot(elementId, plotData) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        // Clear loading indicator
+        element.innerHTML = '';
+        
+        // Parse the JSON string to get the plot figure
+        const figure = JSON.parse(plotData);
+        
+        // Create the plot
+        Plotly.newPlot(element, figure.data, figure.layout, {responsive: true});
+    }
+</script>
+{% endblock %} 

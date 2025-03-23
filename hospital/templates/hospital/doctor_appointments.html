@@ -1,0 +1,176 @@
+{% extends 'users/base.html' %}
+
+{% block title %}My Appointments - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h3 class="mb-0">My Patient Appointments</h3>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-4" id="appointmentsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upcoming-tab" data-bs-toggle="tab" data-bs-target="#upcoming" type="button" role="tab" aria-controls="upcoming" aria-selected="true">
+                            Upcoming Appointments
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="past-tab" data-bs-toggle="tab" data-bs-target="#past" type="button" role="tab" aria-controls="past" aria-selected="false">
+                            Past Appointments
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="appointmentsTabsContent">
+                    <div class="tab-pane fade show active" id="upcoming" role="tabpanel" aria-labelledby="upcoming-tab">
+                        {% if upcoming_appointments %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient</th>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Issue</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for appointment in upcoming_appointments %}
+                                            <tr>
+                                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                                                <td>{{ appointment.appointment_date|date:"M d, Y" }}</td>
+                                                <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                                                <td>
+                                                    {% if appointment.issue %}
+                                                        {{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}
+                                                    {% else %}
+                                                        General Checkup
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                                        {{ appointment.get_status_display }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a href="{% url 'hospital:appointment_detail' appointment.id %}" class="btn btn-outline-primary">View</a>
+                                                        <a href="{% url 'hospital:patient_medical_history_by_doctor' appointment.patient.id %}" class="btn btn-outline-info">Patient History</a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <p class="mb-0">You don't have any upcoming appointments.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane fade" id="past" role="tabpanel" aria-labelledby="past-tab">
+                        {% if past_appointments %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient</th>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Issue</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for appointment in past_appointments %}
+                                            <tr>
+                                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                                                <td>{{ appointment.appointment_date|date:"M d, Y" }}</td>
+                                                <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                                                <td>
+                                                    {% if appointment.issue %}
+                                                        {{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}
+                                                    {% else %}
+                                                        General Checkup
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                                        {{ appointment.get_status_display }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <a href="{% url 'hospital:appointment_detail' appointment.id %}" class="btn btn-outline-primary">View</a>
+                                                        <a href="{% url 'hospital:patient_medical_history_by_doctor' appointment.patient.id %}" class="btn btn-outline-info">Patient History</a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <p class="mb-0">You don't have any past appointments.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Doctor Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'hospital:doctor_patients' %}" class="btn btn-primary">My Patients</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Dashboard</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Today's Schedule</h5>
+            </div>
+            <div class="card-body">
+                <!-- Debug info -->
+                
+                {% if today_appointments|length > 0 %}
+                    <ul class="list-group list-group-flush">
+                        {% for appointment in today_appointments %}
+                            <li class="list-group-item">
+                                <strong>{{ appointment.appointment_time|time:"g:i A" }}</strong>
+                                <br>
+                                {{ appointment.patient.user.get_full_name }}
+                                <br>
+                                <small class="text-muted">
+                                    {% if appointment.issue %}
+                                        {{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}
+                                    {% else %}
+                                        General Checkup
+                                    {% endif %}
+                                </small>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">No appointments scheduled for today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

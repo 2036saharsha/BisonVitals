@@ -1,0 +1,178 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Find a Doctor - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        {% if existing_issue %}
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Booking for Existing Health Issue</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    <h6 class="alert-heading">{{ existing_issue.disease_type.name|default:existing_issue.custom_disease_type }}
+                        <span class="badge bg-{% if existing_issue.severity == 'low' %}success{% elif existing_issue.severity == 'medium' %}warning{% elif existing_issue.severity == 'high' %}danger{% else %}dark{% endif %}">
+                            {{ existing_issue.get_severity_display }}
+                        </span>
+                    </h6>
+                    <p>{{ existing_issue.description }}</p>
+                    
+                    {% if existing_issue.symptoms %}
+                    <p><strong>Symptoms:</strong> {{ existing_issue.symptoms }}</p>
+                    {% endif %}
+                    
+                    {% if existing_issue.device_data %}
+                    <p class="mb-0">
+                        <i class="bi bi-activity"></i> This issue has linked vital signs data that will be shared with the doctor.
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Find a Doctor</h3>
+            </div>
+            <div class="card-body">
+                <!-- Search Bar -->
+                <div class="mb-4">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" name="q" class="form-control" placeholder="Search by name or specialization" value="{{ search_query|default:'' }}">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+                                <i class="bi bi-filter"></i> Advanced Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Advanced Filters -->
+                <div class="collapse mb-4" id="filterCollapse">
+                    <div class="card card-body">
+                        <form method="get" class="row g-3">
+                            {% if search_query %}
+                            <input type="hidden" name="q" value="{{ search_query }}">
+                            {% endif %}
+                            <div class="col-md-6">
+                                <label for="{{ filter_form.specialization.id_for_label }}" class="form-label">Specialization</label>
+                                <select name="specialization" class="form-select">
+                                    <option value="">All Specializations</option>
+                                    {% for spec in all_specializations %}
+                                    <option value="{{ spec }}" {% if request.GET.specialization == spec %}selected{% endif %}>{{ spec }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="min_experience" class="form-label">Minimum Experience</label>
+                                <select name="min_experience" class="form-select">
+                                    <option value="">Any Experience</option>
+                                    <option value="1" {% if request.GET.min_experience == '1' %}selected{% endif %}>At least 1 year</option>
+                                    <option value="3" {% if request.GET.min_experience == '3' %}selected{% endif %}>At least 3 years</option>
+                                    <option value="5" {% if request.GET.min_experience == '5' %}selected{% endif %}>At least 5 years</option>
+                                    <option value="10" {% if request.GET.min_experience == '10' %}selected{% endif %}>At least 10 years</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                                <a href="{% url 'hospital:browse_doctors' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Doctor Results -->
+                <div class="mb-3">
+                    <h5>
+                        Available Doctors
+                        {% if search_query or request.GET.specialization or request.GET.min_experience %}
+                        <span class="text-muted fs-6">(Filtered Results)</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                
+                {% if doctors %}
+                <div class="row">
+                    {% for doctor in doctors %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Dr. {{ doctor.user.get_full_name }}</h5>
+                                <span class="badge bg-primary">{{ doctor.specialization }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span><strong>Experience:</strong> {{ doctor.years_of_experience }} years</span>
+                                        <span><strong>License:</strong> {{ doctor.license_number }}</span>
+                                    </div>
+                                </div>
+                                
+                                {% if doctor.bio %}
+                                <p class="card-text">{{ doctor.bio|truncatewords:30 }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="card-footer">
+                                <a href="{% url 'hospital:direct_book_appointment' doctor.id %}{% if request.GET.issue_id %}?issue_id={{ request.GET.issue_id }}{% endif %}" class="btn btn-success w-100">
+                                    <i class="bi bi-calendar-plus"></i> Book Appointment
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <p class="mb-0">No doctors found matching your criteria. Please try different search terms or filters.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'hospital:create_issue' %}" class="btn btn-outline-primary">Report a Health Issue</a>
+                    <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-outline-primary">My Appointments</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Dashboard</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Looking for Recommendations?</h5>
+            </div>
+            <div class="card-body">
+                <p>If you have a specific health issue, our AI can recommend the best doctors for your condition.</p>
+                <div class="d-grid">
+                    {% if existing_issue %}
+                    <a href="{% url 'hospital:doctor_recommendations' existing_issue.id %}" class="btn btn-warning">
+                        <i class="bi bi-robot"></i> Get AI Recommendations for This Issue
+                    </a>
+                    {% else %}
+                    <a href="{% url 'hospital:create_issue' %}" class="btn btn-warning">
+                        <i class="bi bi-robot"></i> Get AI Recommendations
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.db import transaction
 from .models import User, DoctorProfile, PatientProfile
+from hospital.models import Doctor, Patient
 
 
 class UserLoginForm(AuthenticationForm):
@@ -62,12 +63,24 @@ class DoctorSignUpForm(UserCreationForm):
         user.address = self.cleaned_data.get('address')
         user.save()
         
+        # Create DoctorProfile
         doctor_profile = DoctorProfile.objects.create(
             user=user,
             specialization=self.cleaned_data.get('specialization'),
             license_number=self.cleaned_data.get('license_number'),
             years_of_experience=self.cleaned_data.get('years_of_experience'),
             bio=self.cleaned_data.get('bio')
+        )
+        
+        # Create Doctor record - use get_or_create to avoid duplicate issues
+        Doctor.objects.get_or_create(
+            user=user,
+            defaults={
+                'specialization': self.cleaned_data.get('specialization'),
+                'license_number': self.cleaned_data.get('license_number'),
+                'years_of_experience': self.cleaned_data.get('years_of_experience'),
+                'bio': self.cleaned_data.get('bio')
+            }
         )
         
         return user
@@ -125,6 +138,7 @@ class PatientSignUpForm(UserCreationForm):
         user.address = self.cleaned_data.get('address')
         user.save()
         
+        # Create PatientProfile
         patient_profile = PatientProfile.objects.create(
             user=user,
             blood_group=self.cleaned_data.get('blood_group'),
@@ -132,6 +146,18 @@ class PatientSignUpForm(UserCreationForm):
             emergency_contact_number=self.cleaned_data.get('emergency_contact_number'),
             allergies=self.cleaned_data.get('allergies'),
             medical_history=self.cleaned_data.get('medical_history')
+        )
+        
+        # Create Patient record - use get_or_create to avoid duplicate issues
+        Patient.objects.get_or_create(
+            user=user,
+            defaults={
+                'date_of_birth': self.cleaned_data.get('date_of_birth'),
+                'blood_group': self.cleaned_data.get('blood_group'),
+                'allergies': self.cleaned_data.get('allergies'),
+                'emergency_contact_name': self.cleaned_data.get('emergency_contact_name'),
+                'emergency_contact_number': self.cleaned_data.get('emergency_contact_number')
+            }
         )
         
         return user 

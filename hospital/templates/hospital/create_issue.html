@@ -1,0 +1,134 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Report Health Issue - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Report a Health Issue</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">Please provide information about your health issue below to help us connect you with the right specialist.</p>
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.disease_type.id_for_label }}" class="form-label fw-bold">{{ form.disease_type.label }}</label>
+                                <div class="mb-2">{{ form.disease_type }}</div>
+                                {% if form.disease_type.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.disease_type.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group mb-3">
+                                <label for="{{ form.custom_disease_type.id_for_label }}" class="form-label">{{ form.custom_disease_type.label }}</label>
+                                {{ form.custom_disease_type }}
+                                <div class="form-text">{{ form.custom_disease_type.help_text }}</div>
+                                {% if form.custom_disease_type.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.custom_disease_type.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">Describe your health issue</label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.description.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.symptoms.id_for_label }}" class="form-label fw-bold">Symptoms</label>
+                                {{ form.symptoms }}
+                                <div class="form-text">List your symptoms, when they started, and their frequency.</div>
+                                {% if form.symptoms.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.symptoms.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="{{ form.severity.id_for_label }}" class="form-label fw-bold">How severe is your issue?</label>
+                                <div class="mb-2">{{ form.severity }}</div>
+                                {% if form.severity.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.severity.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                {{ form.device_data }}
+                                <label class="form-check-label" for="{{ form.device_data.id_for_label }}">
+                                    {{ form.device_data.label }}
+                                </label>
+                                <div class="form-text">{{ form.device_data.help_text }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Find Doctors</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">
+                            For emergencies, please call <strong>911</strong> or go to the nearest emergency room.
+                        </small>
+                    </div>
+                    <div>
+                        <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

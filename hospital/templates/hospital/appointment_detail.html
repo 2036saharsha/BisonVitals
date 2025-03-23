@@ -1,0 +1,177 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Appointment Details - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Appointment Details</h3>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h5>Appointment Information</h5>
+                        <table class="table">
+                            <tr>
+                                <th>Date:</th>
+                                <td>{{ appointment.appointment_date|date:"F d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Time:</th>
+                                <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td>
+                                    <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                        {{ appointment.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    {% if user.is_patient %}
+                    <div class="col-md-6">
+                        <h5>Doctor Information</h5>
+                        <table class="table">
+                            <tr>
+                                <th>Doctor:</th>
+                                <td>Dr. {{ appointment.doctor.user.get_full_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Specialization:</th>
+                                <td>{{ appointment.doctor.specialization }}</td>
+                            </tr>
+                            <tr>
+                                <th>Experience:</th>
+                                <td>{{ appointment.doctor.years_of_experience }} years</td>
+                            </tr>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="col-md-6">
+                        <h5>Patient Information</h5>
+                        <table class="table">
+                            <tr>
+                                <th>Patient:</th>
+                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Contact:</th>
+                                <td>{{ appointment.patient.user.email }}</td>
+                            </tr>
+                            <tr>
+                                <th>Phone:</th>
+                                <td>{{ appointment.patient.user.phone_number|default:"Not provided" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if appointment.issue %}
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Health Issue Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">
+                            {{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}
+                            <span class="badge bg-{% if appointment.issue.severity == 'low' %}success{% elif appointment.issue.severity == 'medium' %}warning{% elif appointment.issue.severity == 'high' %}danger{% else %}dark{% endif %}">
+                                {{ appointment.issue.get_severity_display }}
+                            </span>
+                        </h6>
+                        <p class="card-text"><strong>Description:</strong> {{ appointment.issue.description }}</p>
+                        {% if appointment.issue.symptoms %}
+                        <p class="card-text"><strong>Symptoms:</strong> {{ appointment.issue.symptoms }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if appointment.issue.device_data %}
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Vital Signs Data</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>This appointment is related to a health issue with associated vital signs monitoring data.</p>
+                        <div class="d-grid">
+                            <a href="{% url 'hospital:vital_signs_dashboard_for_issue' appointment.issue.id %}" class="btn btn-primary">
+                                <i class="fas fa-chart-line me-1"></i> View Interactive Vital Signs Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if appointment.notes %}
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Notes</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ appointment.notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if user.is_doctor and medical_summary %}
+                <div class="card mb-4">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">Patient Medical History Summary (AI Generated)</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ medical_summary }}</p>
+                        <div class="text-end">
+                            <a href="{% url 'hospital:patient_medical_history_by_doctor' appointment.patient.id %}" class="btn btn-outline-primary">View Full History</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if appointment.is_past and appointment.status == 'completed' %}
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Appointment Results</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if appointment.doctor_notes %}
+                        <div class="mb-3">
+                            <h6>Doctor's Notes</h6>
+                            <p>{{ appointment.doctor_notes }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        {% if appointment.patient_feedback %}
+                        <div>
+                            <h6>Patient Feedback</h6>
+                            <p>{{ appointment.patient_feedback }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between">
+                    {% if user.is_patient %}
+                    <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-outline-primary">Back to Appointments</a>
+                    {% else %}
+                    <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-outline-primary">Back to Appointments</a>
+                    {% endif %}
+                    
+                    {% if appointment.status == 'scheduled' %}
+                    <div>
+                        <button class="btn btn-warning">Reschedule</button>
+                        <button class="btn btn-danger">Cancel</button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

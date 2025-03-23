@@ -32,7 +32,7 @@
             <a href="#" class="list-group-item list-group-item-action active">Dashboard</a>
             {% if is_doctor %}
                 <a href="#" class="list-group-item list-group-item-action">My Patients</a>
-                <a href="#" class="list-group-item list-group-item-action">Appointments</a>
+                <a href="{% url 'hospital:doctor_appointments' %}" class="list-group-item list-group-item-action">Appointments</a>
                 <a href="#" class="list-group-item list-group-item-action">Schedule</a>
             {% elif is_patient %}
                 <a href="#" class="list-group-item list-group-item-action">My Doctors</a>
@@ -66,7 +66,7 @@
                         <h5>Quick Actions</h5>
                         <div class="row">
                             <div class="col-md-4">
-                                <a href="#" class="btn btn-success btn-sm w-100 mb-2">View Appointments</a>
+                                <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-success btn-sm w-100 mb-2">View Appointments</a>
                             </div>
                             <div class="col-md-4">
                                 <a href="#" class="btn btn-success btn-sm w-100 mb-2">Manage Patient Records</a>
@@ -89,13 +89,13 @@
                         <h5>Quick Actions</h5>
                         <div class="row">
                             <div class="col-md-4">
-                                <a href="#" class="btn btn-info btn-sm w-100 mb-2">Book Appointment</a>
+                                <a href="{% url 'hospital:create_issue' %}" class="btn btn-info btn-sm w-100 mb-2">Book Appointment</a>
                             </div>
                             <div class="col-md-4">
-                                <a href="#" class="btn btn-info btn-sm w-100 mb-2">View Medical History</a>
+                                <a href="{% url 'hospital:patient_medical_history' %}" class="btn btn-info btn-sm w-100 mb-2">View Medical History</a>
                             </div>
                             <div class="col-md-4">
-                                <a href="#" class="btn btn-info btn-sm w-100 mb-2">Find Doctors</a>
+                                <a href="{% url 'hospital:create_issue' %}" class="btn btn-info btn-sm w-100 mb-2">Find Doctors</a>
                             </div>
                         </div>
                     </div>
@@ -110,12 +110,56 @@
                         <h5 class="mb-0">Upcoming Appointments</h5>
                     </div>
                     <div class="card-body">
-                        <p class="text-muted">No upcoming appointments found.</p>
+                        <!-- Debug info -->
+                        
+                        {% if debug_appointment_count > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            {% if is_doctor %}
+                                            <th>Patient</th>
+                                            {% else %}
+                                            <th>Doctor</th>
+                                            {% endif %}
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Issue</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for appointment in upcoming_appointments|slice:":3" %}
+                                        <tr>
+                                            {% if is_doctor %}
+                                            <td>{{ appointment.patient.user.get_full_name }}</td>
+                                            {% else %}
+                                            <td>Dr. {{ appointment.doctor.user.get_full_name }}</td>
+                                            {% endif %}
+                                            <td>{{ appointment.appointment_date|date:"M d, Y" }}</td>
+                                            <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                                            <td>
+                                                {% if appointment.issue %}
+                                                    {{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}
+                                                {% else %}
+                                                    General Checkup
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No upcoming appointments found.</p>
+                        {% endif %}
                         
                         {% if is_doctor %}
-                            <a href="#" class="btn btn-outline-primary btn-sm">View All Appointments</a>
+                            <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-outline-primary btn-sm">View All Appointments</a>
                         {% elif is_patient %}
-                            <a href="#" class="btn btn-outline-primary btn-sm">Book an Appointment</a>
+                            <a href="{% url 'hospital:create_issue' %}" class="btn btn-outline-primary btn-sm">Report Issue & Book Appointment</a>
+                            {% if debug_appointment_count > 0 %}
+                            <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-outline-primary btn-sm">View All Appointments</a>
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>

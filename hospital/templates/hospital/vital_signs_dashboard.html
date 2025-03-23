@@ -1,0 +1,452 @@
+{% extends 'hospital/base.html' %}
+
+{% block title %}{{ page_title|default:"Vital Signs Dashboard" }}{% endblock %}
+
+{% block extra_head %}
+<!-- D3.js -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        padding: 15px;
+    }
+    .chart-title {
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    .gauge {
+        width: 200px;
+        height: 200px;
+    }
+    .line-chart {
+        height: 300px;
+    }
+    .axis-label {
+        font-size: 12px;
+        fill: #666;
+    }
+    .line {
+        fill: none;
+        stroke-width: 2;
+    }
+    .grid line {
+        stroke: #ddd;
+        stroke-opacity: 0.7;
+        shape-rendering: crispEdges;
+    }
+    .grid path {
+        stroke-width: 0;
+    }
+    .value-text {
+        font-size: 24px;
+        font-weight: bold;
+        text-anchor: middle;
+    }
+    .unit-text {
+        font-size: 14px;
+        fill: #666;
+        text-anchor: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ page_title|default:"Live Vital Signs Dashboard" }}</h1>
+        {% if issue %}
+        <a href="{% url 'hospital:patient_medical_history' %}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Medical History
+        </a>
+        {% endif %}
+    </div>
+    
+    <!-- Current Values Section -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="chart-container">
+                <div class="chart-title">Heart Rate</div>
+                <div id="heartRateGauge" class="gauge"></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="chart-container">
+                <div class="chart-title">Respiratory Rate</div>
+                <div id="respRateGauge" class="gauge"></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="chart-container">
+                <div class="chart-title">Body Temperature</div>
+                <div id="tempGauge" class="gauge"></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="chart-container">
+                <div class="chart-title">Oxygen Saturation</div>
+                <div id="oxygenGauge" class="gauge"></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="chart-container">
+                <div class="chart-title">Systolic BP</div>
+                <div id="systolicGauge" class="gauge"></div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="chart-container">
+                <div class="chart-title">Diastolic BP</div>
+                <div id="diastolicGauge" class="gauge"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Series Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Heart Rate & Respiratory Rate Trends</div>
+                <div id="vitalSignsChart1" class="line-chart"></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Blood Pressure Trends</div>
+                <div id="vitalSignsChart2" class="line-chart"></div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Body Temperature Trend</div>
+                <div id="vitalSignsChart3" class="line-chart"></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="chart-container">
+                <div class="chart-title">Oxygen Saturation Trend</div>
+                <div id="vitalSignsChart4" class="line-chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Configuration for vital signs
+    const vitalSigns = {
+        heartRate: {
+            name: 'Heart Rate',
+            unit: 'bpm',
+            min: 40,
+            max: 160,
+            normal: { min: 60, max: 100 },
+            color: '#dc3545'
+        },
+        respRate: {
+            name: 'Respiratory Rate',
+            unit: 'bpm',
+            min: 8,
+            max: 30,
+            normal: { min: 12, max: 20 },
+            color: '#0dcaf0'
+        },
+        temperature: {
+            name: 'Temperature',
+            unit: '°C',
+            min: 35,
+            max: 40,
+            normal: { min: 36.5, max: 37.5 },
+            color: '#fd7e14'
+        },
+        oxygen: {
+            name: 'SpO2',
+            unit: '%',
+            min: 80,
+            max: 100,
+            normal: { min: 95, max: 100 },
+            color: '#20c997'
+        },
+        systolic: {
+            name: 'Systolic BP',
+            unit: 'mmHg',
+            min: 80,
+            max: 180,
+            normal: { min: 90, max: 140 },
+            color: '#0d6efd'
+        },
+        diastolic: {
+            name: 'Diastolic BP',
+            unit: 'mmHg',
+            min: 40,
+            max: 120,
+            normal: { min: 60, max: 90 },
+            color: '#6610f2'
+        }
+    };
+
+    // Initialize data arrays for time series
+    const maxDataPoints = 60; // Keep 60 data points for 1-hour view
+    const timeSeriesData = {
+        timestamps: [],
+        heartRate: [],
+        respRate: [],
+        temperature: [],
+        oxygen: [],
+        systolic: [],
+        diastolic: []
+    };
+
+    // Create gauge charts
+    function createGauge(containerId, config) {
+        const width = 200;
+        const height = 200;
+        const radius = Math.min(width, height) / 2;
+        
+        const svg = d3.select(`#${containerId}`)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .append('g')
+            .attr('transform', `translate(${width/2},${height/2})`);
+
+        // Create scale
+        const scale = d3.scaleLinear()
+            .domain([config.min, config.max])
+            .range([-150, 150]);
+
+        // Create arc generator
+        const arc = d3.arc()
+            .innerRadius(radius - 30)
+            .outerRadius(radius - 20)
+            .startAngle(-Math.PI * 0.75)
+            .endAngle(Math.PI * 0.75);
+
+        // Add background arc
+        svg.append('path')
+            .attr('class', 'gauge-background')
+            .attr('d', arc)
+            .style('fill', '#eee');
+
+        // Add colored arc for value
+        const valueArc = d3.arc()
+            .innerRadius(radius - 30)
+            .outerRadius(radius - 20)
+            .startAngle(-Math.PI * 0.75);
+
+        const valuePath = svg.append('path')
+            .attr('class', 'gauge-value')
+            .style('fill', config.color);
+
+        // Add value text
+        const valueText = svg.append('text')
+            .attr('class', 'value-text')
+            .attr('y', 10);
+
+        // Add unit text
+        svg.append('text')
+            .attr('class', 'unit-text')
+            .attr('y', 30)
+            .text(config.unit);
+
+        // Function to update gauge
+        return function(value) {
+            const angle = scale(value) * Math.PI / 180;
+            valueArc.endAngle(-Math.PI * 0.75 + angle);
+            valuePath.attr('d', valueArc);
+            valueText.text(Math.round(value));
+        };
+    }
+
+    // Create line charts
+    function createLineChart(containerId, configs) {
+        const margin = {top: 20, right: 30, bottom: 30, left: 50};
+        const width = document.getElementById(containerId).offsetWidth - margin.left - margin.right;
+        const height = document.getElementById(containerId).offsetHeight - margin.top - margin.bottom;
+
+        const svg = d3.select(`#${containerId}`)
+            .append('svg')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom)
+            .append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        // Add grid
+        svg.append('g')
+            .attr('class', 'grid')
+            .attr('transform', `translate(0,${height})`);
+
+        svg.append('g')
+            .attr('class', 'grid');
+
+        // Add axes
+        const xAxis = svg.append('g')
+            .attr('class', 'x-axis')
+            .attr('transform', `translate(0,${height})`);
+
+        const yAxis = svg.append('g')
+            .attr('class', 'y-axis');
+
+        // Add lines
+        const lines = {};
+        configs.forEach(config => {
+            lines[config.key] = svg.append('path')
+                .attr('class', 'line')
+                .style('stroke', config.color);
+        });
+
+        // Function to update chart
+        return function(data) {
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(data.timestamps))
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([
+                    d3.min(configs.map(c => Math.min(...data[c.key]))) * 0.9,
+                    d3.max(configs.map(c => Math.max(...data[c.key]))) * 1.1
+                ])
+                .range([height, 0]);
+
+            // Update grid
+            svg.select('.grid')
+                .call(d3.axisBottom(xScale)
+                    .tickSize(-height)
+                    .tickFormat(''));
+
+            svg.select('.grid')
+                .call(d3.axisLeft(yScale)
+                    .tickSize(-width)
+                    .tickFormat(''));
+
+            // Update axes
+            xAxis.call(d3.axisBottom(xScale));
+            yAxis.call(d3.axisLeft(yScale));
+
+            // Update lines
+            configs.forEach(config => {
+                const line = d3.line()
+                    .x((d, i) => xScale(data.timestamps[i]))
+                    .y(d => yScale(d));
+
+                lines[config.key]
+                    .datum(data[config.key])
+                    .attr('d', line);
+            });
+        };
+    }
+
+    // Initialize gauges
+    const gauges = {
+        heartRate: createGauge('heartRateGauge', vitalSigns.heartRate),
+        respRate: createGauge('respRateGauge', vitalSigns.respRate),
+        temperature: createGauge('tempGauge', vitalSigns.temperature),
+        oxygen: createGauge('oxygenGauge', vitalSigns.oxygen),
+        systolic: createGauge('systolicGauge', vitalSigns.systolic),
+        diastolic: createGauge('diastolicGauge', vitalSigns.diastolic)
+    };
+
+    // Initialize line charts
+    const charts = {
+        vitals1: createLineChart('vitalSignsChart1', [
+            {key: 'heartRate', color: vitalSigns.heartRate.color},
+            {key: 'respRate', color: vitalSigns.respRate.color}
+        ]),
+        vitals2: createLineChart('vitalSignsChart2', [
+            {key: 'systolic', color: vitalSigns.systolic.color},
+            {key: 'diastolic', color: vitalSigns.diastolic.color}
+        ]),
+        vitals3: createLineChart('vitalSignsChart3', [
+            {key: 'temperature', color: vitalSigns.temperature.color}
+        ]),
+        vitals4: createLineChart('vitalSignsChart4', [
+            {key: 'oxygen', color: vitalSigns.oxygen.color}
+        ])
+    };
+
+    // Function to generate random vital sign value within normal range
+    function generateVitalSign(config, prevValue = null) {
+        const range = config.normal.max - config.normal.min;
+        const variation = range * 0.1; // 10% variation
+        
+        let baseValue;
+        if (prevValue === null) {
+            baseValue = config.normal.min + Math.random() * range;
+        } else {
+            baseValue = prevValue + (Math.random() - 0.5) * variation;
+        }
+        
+        return Math.max(config.min, Math.min(config.max, baseValue));
+    }
+
+    // Function to update data and charts
+    function updateData() {
+        const now = new Date();
+        
+        // Add new data point
+        timeSeriesData.timestamps.push(now);
+        timeSeriesData.heartRate.push(generateVitalSign(vitalSigns.heartRate, 
+            timeSeriesData.heartRate[timeSeriesData.heartRate.length - 1]));
+        timeSeriesData.respRate.push(generateVitalSign(vitalSigns.respRate,
+            timeSeriesData.respRate[timeSeriesData.respRate.length - 1]));
+        timeSeriesData.temperature.push(generateVitalSign(vitalSigns.temperature,
+            timeSeriesData.temperature[timeSeriesData.temperature.length - 1]));
+        timeSeriesData.oxygen.push(generateVitalSign(vitalSigns.oxygen,
+            timeSeriesData.oxygen[timeSeriesData.oxygen.length - 1]));
+        timeSeriesData.systolic.push(generateVitalSign(vitalSigns.systolic,
+            timeSeriesData.systolic[timeSeriesData.systolic.length - 1]));
+        timeSeriesData.diastolic.push(generateVitalSign(vitalSigns.diastolic,
+            timeSeriesData.diastolic[timeSeriesData.diastolic.length - 1]));
+
+        // Remove old data points if we exceed maxDataPoints
+        if (timeSeriesData.timestamps.length > maxDataPoints) {
+            timeSeriesData.timestamps.shift();
+            timeSeriesData.heartRate.shift();
+            timeSeriesData.respRate.shift();
+            timeSeriesData.temperature.shift();
+            timeSeriesData.oxygen.shift();
+            timeSeriesData.systolic.shift();
+            timeSeriesData.diastolic.shift();
+        }
+
+        // Update gauges with latest values
+        gauges.heartRate(timeSeriesData.heartRate[timeSeriesData.heartRate.length - 1]);
+        gauges.respRate(timeSeriesData.respRate[timeSeriesData.respRate.length - 1]);
+        gauges.temperature(timeSeriesData.temperature[timeSeriesData.temperature.length - 1]);
+        gauges.oxygen(timeSeriesData.oxygen[timeSeriesData.oxygen.length - 1]);
+        gauges.systolic(timeSeriesData.systolic[timeSeriesData.systolic.length - 1]);
+        gauges.diastolic(timeSeriesData.diastolic[timeSeriesData.diastolic.length - 1]);
+
+        // Update line charts
+        charts.vitals1(timeSeriesData);
+        charts.vitals2(timeSeriesData);
+        charts.vitals3(timeSeriesData);
+        charts.vitals4(timeSeriesData);
+    }
+
+    // Initialize with some data
+    for (let i = 0; i < maxDataPoints; i++) {
+        const time = new Date(Date.now() - (maxDataPoints - i) * 1000);
+        timeSeriesData.timestamps.push(time);
+        timeSeriesData.heartRate.push(generateVitalSign(vitalSigns.heartRate));
+        timeSeriesData.respRate.push(generateVitalSign(vitalSigns.respRate));
+        timeSeriesData.temperature.push(generateVitalSign(vitalSigns.temperature));
+        timeSeriesData.oxygen.push(generateVitalSign(vitalSigns.oxygen));
+        timeSeriesData.systolic.push(generateVitalSign(vitalSigns.systolic));
+        timeSeriesData.diastolic.push(generateVitalSign(vitalSigns.diastolic));
+    }
+
+    // Update charts with initial data
+    updateData();
+
+    // Update every second
+    setInterval(updateData, 1000);
+</script>
+{% endblock %} 

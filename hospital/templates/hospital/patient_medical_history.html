@@ -1,0 +1,177 @@
+{% extends 'users/base.html' %}
+
+{% block title %}{% if is_self_view %}My Medical History{% else %}Patient Medical History{% endif %} - Hospital CRM{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-9">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">{% if is_self_view %}My Medical History{% else %}{{ patient.user.get_full_name }}'s Medical History{% endif %}</h3>
+            </div>
+            <div class="card-body">
+                {% if medical_summary %}
+                <div class="card mb-4">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">Patient History Summary (AI Generated)</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ medical_summary }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-4">
+                    <h5>Health Issues</h5>
+                    {% if issues %}
+                        <div class="accordion" id="issuesAccordion">
+                            {% for issue in issues %}
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading{{ issue.id }}">
+                                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ issue.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ issue.id }}">
+                                            <span class="me-2">{{ issue.disease_type.name|default:issue.custom_disease_type }}</span>
+                                            <span class="badge bg-{% if issue.severity == 'low' %}success{% elif issue.severity == 'medium' %}warning{% elif issue.severity == 'high' %}danger{% else %}dark{% endif %} me-2">
+                                                {{ issue.get_severity_display }}
+                                            </span>
+                                            <small class="text-muted">{{ issue.created_at|date:"M d, Y" }}</small>
+                                            <span class="ms-auto badge bg-{% if issue.status == 'open' %}primary{% elif issue.status == 'in_progress' %}info{% elif issue.status == 'resolved' %}success{% else %}secondary{% endif %}">
+                                                {{ issue.get_status_display }}
+                                            </span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse{{ issue.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ issue.id }}" data-bs-parent="#issuesAccordion">
+                                        <div class="accordion-body">
+                                            <div class="mb-3">
+                                                <h6>Description</h6>
+                                                <p>{{ issue.description }}</p>
+                                            </div>
+                                            
+                                            {% if issue.symptoms %}
+                                            <div class="mb-3">
+                                                <h6>Symptoms</h6>
+                                                <p>{{ issue.symptoms }}</p>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if issue.device_data %}
+                                            <div class="card mb-4">
+                                                <div class="card-header bg-info text-white">
+                                                    <h5 class="mb-0">Vital Signs Data</h5>
+                                                </div>
+                                                <div class="card-body">
+                                                    <p>This health issue has associated vital signs monitoring data.</p>
+                                                    <div class="d-grid">
+                                                        <a href="{% url 'hospital:vital_signs_dashboard_for_issue' issue.id %}" class="btn btn-sm btn-info">
+                                                            <i class="fas fa-chart-line"></i> View Vital Signs Data
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if issue.appointments.all %}
+                                            <div class="mb-3">
+                                                <h6>Related Appointments</h6>
+                                                <ul class="list-group">
+                                                    {% for appointment in issue.appointments.all %}
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <strong>Dr. {{ appointment.doctor.user.get_full_name }}</strong>
+                                                            <small class="d-block text-muted">{{ appointment.appointment_date|date:"M d, Y" }} at {{ appointment.appointment_time|time:"g:i A" }}</small>
+                                                        </div>
+                                                        <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                                            {{ appointment.get_status_display }}
+                                                        </span>
+                                                        <a href="{% url 'hospital:appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary">Details</a>
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <p class="mb-0">No health issues recorded.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">{% if is_self_view %}My Info{% else %}Patient Info{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>Name:</strong> {{ patient.user.get_full_name }}<br>
+                    {% if not is_self_view %}
+                    <strong>Email:</strong> {{ patient.user.email }}<br>
+                    <strong>Phone:</strong> {{ patient.user.phone_number|default:"Not provided" }}<br>
+                    {% endif %}
+                    <strong>Blood Group:</strong> {{ patient.blood_group|default:"Not specified" }}
+                </p>
+                
+                {% if patient.allergies %}
+                <div class="mb-3">
+                    <h6>Allergies</h6>
+                    <p>{{ patient.allergies }}</p>
+                </div>
+                {% endif %}
+                
+                {% if patient.emergency_contact_name %}
+                <div class="mb-3">
+                    <h6>Emergency Contact</h6>
+                    <p>
+                        {{ patient.emergency_contact_name }}<br>
+                        {{ patient.emergency_contact_number|default:"No number provided" }}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+            {% if user.is_doctor %}
+            <div class="card-footer">
+                <div class="d-grid">
+                    <a href="{% url 'hospital:doctor_appointments' %}" class="btn btn-outline-primary">Back to Appointments</a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Vital Signs</h5>
+            </div>
+            <div class="card-body">
+                <p>View interactive visualizations of vital signs data for health assessment and monitoring.</p>
+                <div class="d-grid">
+                    <a href="{% url 'hospital:vital_signs_dashboard' %}{% if patient.id %}?patient_id={{ patient.id }}{% endif %}" class="btn btn-warning">
+                        <i class="fas fa-chart-line me-1"></i> View Interactive Vital Signs Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% if is_self_view %}
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'hospital:create_issue' %}" class="btn btn-primary">Report New Issue</a>
+                    <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-outline-primary">My Appointments</a>
+                    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Dashboard</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

@@ -78,11 +78,55 @@
                 <h4 class="mb-0">Appointments</h4>
             </div>
             <div class="card-body">
+                <!-- Debug info -->
+                <div class="alert alert-info small mb-3">
+                    {% if upcoming_appointments and upcoming_appointments.0 %}
+                    <p>First appointment: ID #{{ upcoming_appointments.0.id }}, Date: {{ upcoming_appointments.0.appointment_date }}</p>
+                    {% endif %}
+                </div>
+                
+                {% if upcoming_appointments and upcoming_appointments|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Doctor</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Issue</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in upcoming_appointments %}
+                            <tr>
+                                <td>Dr. {{ appointment.doctor.user.get_full_name }}</td>
+                                <td>{{ appointment.appointment_date|date:"M d, Y" }}</td>
+                                <td>{{ appointment.appointment_time|time:"g:i A" }}</td>
+                                <td>
+                                    {% if appointment.issue %}
+                                        {{ appointment.issue.disease_type.name|default:appointment.issue.custom_disease_type }}
+                                    {% else %}
+                                        General Checkup
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if appointment.status == 'scheduled' %}primary{% elif appointment.status == 'completed' %}success{% elif appointment.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                        {{ appointment.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
                 <p class="text-muted">No appointments found.</p>
+                {% endif %}
                 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-start">
-                    <a href="#" class="btn btn-primary">Book Appointment</a>
-                    <a href="#" class="btn btn-outline-primary">View Past Appointments</a>
+                    <a href="{% url 'hospital:create_issue' %}" class="btn btn-primary">Report Issue & Book Appointment</a>
+                    <a href="{% url 'hospital:patient_appointments' %}" class="btn btn-outline-primary">View All Appointments</a>
                 </div>
             </div>
         </div>
@@ -94,7 +138,7 @@
             <div class="card-body">
                 <p class="text-muted">No doctors assigned yet.</p>
                 
-                <a href="#" class="btn btn-primary">Find Doctors</a>
+                <a href="{% url 'hospital:create_issue' %}" class="btn btn-primary">Find Doctors</a>
             </div>
         </div>
     </div>

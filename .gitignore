@@ -7,3 +7,6 @@ __pycache__/
 *.pyz
 
 db.sqlite3
+
+# Environment variables
+.env
