@@ -9,7 +9,7 @@ from django.db.models import Q
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import Issue, Appointment, DiseaseType, Doctor, Patient, Issue
+from .models import Issue, Appointment, DiseaseType, Doctor, Patient, Issue, Alert
 from .forms import IssueForm, AppointmentForm, DoctorFilterForm
 from users.models import User, DoctorProfile, PatientProfile
 from .visualization import generate_vital_signs_plots
@@ -23,6 +23,7 @@ import subprocess
 import threading
 import webbrowser
 import time
+import pickle
 
 # Helper functions
 def get_patient_profile(user):
@@ -146,6 +147,8 @@ def dashboard(request):
         # For doctor
         try:
             doctor = Doctor.objects.get(user=request.user)
+            # Add this line to get new alerts count
+            new_alerts_count = Alert.objects.filter(doctor=doctor, status='new').count()
             
             appointments_queryset = Appointment.objects.filter(
                 doctor=doctor,
@@ -197,6 +200,7 @@ def dashboard(request):
                 'monthly_appointments_count': monthly_appointments_count,
                 'completed_appointments_count': completed_appointments_count,
                 'recent_patients': recent_patients,
+                'new_alerts_count': new_alerts_count,
             })
         except Exception as e:
             print(f"Error in doctor dashboard: {e}")
@@ -260,6 +264,13 @@ def dashboard(request):
             'last_backup_date': timezone.now() - timedelta(days=1),  # Placeholder
         })
     
+    if request.user.is_authenticated and request.user.is_doctor():
+        try:
+            doctor = Doctor.objects.get(user=request.user)
+            context['has_new_alerts'] = Alert.objects.filter(doctor=doctor, status='new').exists()
+        except Doctor.DoesNotExist:
+            context['has_new_alerts'] = False
+    
     return render(request, 'hospital/dashboard.html', context)
 
 @login_required
@@ -278,18 +289,32 @@ def create_issue(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        form = IssueForm(request.POST)
+        form = IssueForm(request.POST, request.FILES)
         if form.is_valid():
             issue = form.save(commit=False)
             issue.patient = patient
             
             # Handle device data
             if form.cleaned_data.get('device_data'):
-                # In a real application, this would be a file upload
-                # For this example, we're using the existing CSV in the datasets folder
-                issue.device_data = 'datasets/human_vital_signs_dataset_2024.csv'
+                # Save the uploaded file
+                file_path = os.path.join(settings.MEDIA_ROOT, 'vital_signs', f'patient_{patient.id}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv')
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                with open(file_path, 'wb+') as destination:
+                    for chunk in form.cleaned_data['device_data'].chunks():
+                        destination.write(chunk)
+                
+                issue.device_data = os.path.relpath(file_path, settings.BASE_DIR)
             
             issue.save()
+            
+            # Process vital signs data if available
+            if issue.device_data:
+                from .utils import process_vital_signs_data
+                success = process_vital_signs_data(issue.id, file_path)
+                if not success:
+                    messages.warning(request, "Your health issue was reported, but there was an error processing the vital signs data.")
+            
             messages.success(request, "Your health issue has been reported successfully.")
             return redirect('hospital:doctor_recommendations', issue_id=issue.id)
     else:
@@ -1079,33 +1104,21 @@ def vital_signs_data(request):
     
     return JsonResponse(plot_data)
 
+@login_required
 def vital_signs_dashboard(request, issue_id=None):
-    """Render the D3.js-based vital signs dashboard."""
-    # Check if user is a doctor or patient
-    if not (request.user.is_doctor() or request.user.is_patient() or request.user.is_staff):
-        messages.error(request, "You don't have permission to view this page.")
-        return redirect('dashboard')
+    context = {}
     
-    # Get the issue if an ID was provided
-    issue = None
-    patient = None
+    if request.user.is_doctor():
+        try:
+            doctor = Doctor.objects.get(user=request.user)
+            context['has_new_alerts'] = Alert.objects.filter(doctor=doctor, status='new').exists()
+        except Doctor.DoesNotExist:
+            context['has_new_alerts'] = False
+    
+    # Get issue and patient if issue_id is provided
     if issue_id:
         try:
-            if request.user.is_doctor():
-                # Doctor can view any patient's issue if they have an appointment
-                doctor = get_object_or_404(Doctor, user=request.user)
-                # First get all appointments for this doctor
-                doctor_appointments = Appointment.objects.filter(doctor=doctor).values_list('patient', flat=True)
-                # Then get the specific issue
-                issue = get_object_or_404(Issue, id=issue_id, patient__in=doctor_appointments)
-            elif request.user.is_patient():
-                # Patient can only view their own issues
-                patient = get_object_or_404(Patient, user=request.user)
-                issue = get_object_or_404(Issue, id=issue_id, patient=patient)
-            elif request.user.is_staff:
-                # Staff can view any issue
-                issue = get_object_or_404(Issue, id=issue_id)
-            
+            issue = get_object_or_404(Issue, id=issue_id)
             patient = issue.patient
         except Http404:
             messages.error(request, "Issue not found or you don't have permission to view it.")
@@ -1114,17 +1127,72 @@ def vital_signs_dashboard(request, issue_id=None):
             messages.error(request, f"Error retrieving issue: {str(e)}")
             return redirect('dashboard')
     elif request.user.is_patient():
-        # If no issue_id is provided and user is a patient, use their ID
         try:
             patient = get_object_or_404(Patient, user=request.user)
         except Http404:
             messages.error(request, "Your patient profile is not set up correctly.")
             return redirect('dashboard')
-
-    context = {
-        'issue': issue,
-        'patient': patient,
-        'page_title': f"Vital Signs Dashboard - {patient.user.get_full_name() if patient else 'All Patients'}"
-    }
+    
+    context.update({
+        'issue': issue if 'issue' in locals() else None,
+        'patient': patient if 'patient' in locals() else None,
+        'page_title': f"Vital Signs Dashboard - {patient.user.get_full_name() if 'patient' in locals() else 'All Patients'}"
+    })
     
     return render(request, 'hospital/vital_signs_dashboard.html', context)
+
+@login_required
+def doctor_alerts(request):
+    """View for doctors to see their alerts"""
+    from hospital.utils import reprocess_vital_signs_files
+    reprocess_vital_signs_files()
+    if not request.user.is_doctor():
+        messages.error(request, "This page is only for doctors.")
+        return redirect('dashboard')
+    
+    try:
+        doctor = Doctor.objects.get(user=request.user)
+    except Doctor.DoesNotExist:
+        messages.error(request, "Your doctor profile is not set up correctly.")
+        return redirect('dashboard')
+    
+    # Get alerts for this doctor
+    alerts = Alert.objects.filter(doctor=doctor).select_related('patient__user', 'issue')
+    
+    # Filter by status if provided
+    status = request.GET.get('status')
+    if status:
+        alerts = alerts.filter(status=status)
+    
+    # Mark alerts as viewed
+    if request.method == 'POST':
+        alert_id = request.POST.get('alert_id')
+        action = request.POST.get('action')
+        
+        if alert_id and action:
+            try:
+                alert = alerts.get(id=alert_id)
+                if action == 'acknowledge':
+                    alert.status = 'acknowledged'
+                elif action == 'resolve':
+                    alert.status = 'resolved'
+                alert.save()
+                messages.success(request, f"Alert {action}d successfully.")
+            except Alert.DoesNotExist:
+                messages.error(request, "Alert not found.")
+    
+    # Update any unviewed alerts to viewed status
+    alerts.filter(status='new').update(status='viewed')
+    
+    # Group alerts by urgency for the template
+    grouped_alerts = {
+        'critical': alerts.filter(urgency='critical'),
+        'high': alerts.filter(urgency='high'),
+        'medium': alerts.filter(urgency='medium'),
+        'low': alerts.filter(urgency='low')
+    }
+    
+    return render(request, 'hospital/doctor_alerts.html', {
+        'grouped_alerts': grouped_alerts,
+        'selected_status': status
+    })
